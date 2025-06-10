@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Xem & Giải mã Hồ sơ{% endblock %}
+
+{% block head %}
+<style>
+.step-section { margin-bottom: 40px; padding-bottom: 20px; border-bottom: 2px dashed #ccc; }
+.step-section:last-child { border-bottom: none; }
+.step-section h3 { border-left: 4px solid #3498db; padding-left: 10px; margin-bottom: 15px; }
+.record-list li { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+.policy-builder { background: #f0f8ff; padding: 20px; border-radius: 8px; margin-top: 15px; }
+.attribute-group { margin-bottom: 15px; }
+.attribute-selector { display: flex; flex-wrap: wrap; gap: 10px; }
+.attribute-option { display: inline-block; padding: 8px 15px; border: 2px solid #ccc; border-radius: 20px; cursor: pointer; user-select: none; transition: all 0.2s ease-in-out; }
+.attribute-option.selected { background-color: #3498db; color: white; border-color: #2980b9; }
+</style>
+{% endblock %}
+
+
+{% block content %}
+<h2>👤 Xem và Giải mã Hồ sơ Bệnh án</h2>
+
+<!-- ======================================================== -->
+<!-- BƯỚC 1: XEM VÀ TẢI VỀ BẢN MÃ -->
+<!-- ======================================================== -->
+<div class="step-section">
+    <h3>Bước 1: Tìm và Tải về Hồ sơ Mã hóa</h3>
+    
+    <!-- ======================================================== -->
+    <!-- == NÚT TÌM KIẾM CHO BÁC SĨ ĐÃ ĐƯỢC THÊM LẠI == -->
+    <!-- ======================================================== -->
+    {% if session.user.role == 'doctor' %}
+        <div class="search-panel" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h4>Tìm kiếm Hồ sơ</h4>
+            <p>Hệ thống sẽ tự động tìm các hồ sơ phù hợp với các thuộc tính của bạn.</p>
+            <form method="POST" action="{{ url_for('user.data_user') }}">
+                <button class="btn btn-primary" type="submit">🔍 Tìm kiếm theo thuộc tính</button>
+            </form>
+        </div>
+    {% endif %}
+    
+    {% if results %}
+        <p><strong>Danh sách hồ sơ:</strong></p>
+        <ul class="record-list" style="list-style: none; padding: 0; margin-top: 10px;">
+            {% for r in results %}
+                <li>
+                    <div>
+                        <p><strong>Bệnh nhân:</strong> {{ r.patient_name }} (Mô tả: {{ r.record_description }})</p>
+                        <p><strong>Chính sách:</strong> <code>{{ r.access_policy }}</code></p>
+                    </div>
+                    <form action="{{ url_for('user.download_record') }}" method="POST" style="display:inline;">
+                        <input type="hidden" name="doc_id" value="{{ r._id }}">
+                        <button type="submit" class="btn">📥 Tải về Bản mã</button>
+                    </form>
+                </li>
+            {% else %}
+                 <li>Không tìm thấy hồ sơ nào.</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        {% if request.method == 'POST' %}
+            <p>Không tìm thấy hồ sơ nào phù hợp với thuộc tính của bạn.</p>
+        {% elif session.user.role == 'patient' %}
+             <p>Bạn chưa có hồ sơ nào.</p>
+        {% endif %}
+    {% endif %}
+</div>
+
+
+<!-- ======================================================== -->
+<!-- BƯỚC 2: YÊU CẦU CẤP KHÓA BÍ MẬT (SECRET KEY) -->
+<!-- ======================================================== -->
+<div class="step-section">
+    <h3>Bước 2: Yêu cầu Khóa Giải mã (Secret Key)</h3>
+    
+    {% if session.user.role == 'doctor' %}
+        <p>Hệ thống đã ghi nhận các thuộc tính của bạn. Nhấn nút dưới đây để yêu cầu cấp một Khóa Bí mật tương ứng.</p>
+        <div class="policy-builder">
+            <h4>Các thuộc tính hiện tại của bạn:</h4>
+            {% if session.user.attributes %}
+                <ul>
+                {% for attr in session.user.attributes %}
+                    <li><code>{{ attr }}</code></li>
+                {% endfor %}
+                </ul>
+            {% else %}
+                <p>Không có thuộc tính nào được ghi nhận.</p>
+            {% endif %}
+
+            <!-- Form này sẽ gửi yêu cầu mà không cần người dùng chọn gì thêm -->
+            <form action="{{ url_for('user.request_secret_key') }}" method="POST">
+                <button type="submit" class="btn btn-success">🔑 Yêu cầu cấp khóa</button>
+            </form>
+        </div>
+    {% else %}
+         <!-- Bệnh nhân có thể có quy trình yêu cầu khóa khác hoặc đơn giản hơn -->
+         <p>Với vai trò bệnh nhân, bạn có thể yêu cầu khóa giải mã cho các hồ sơ của mình.</p>
+         <form action="{{ url_for('user.request_secret_key') }}" method="POST">
+            <!-- Gửi đi thuộc tính mặc định của bệnh nhân -->
+            <input type="hidden" name="attributes" value="role:Patient">
+            <button type="submit" class="btn btn-success">🔑 Yêu cầu cấp khóa</button>
+        </form>
+    {% endif %}
+</div>
+
+
+<!-- ======================================================== -->
+<!-- BƯỚC 3: GIẢI MÃ TẠI LOCAL -->
+<!-- ======================================================== -->
+<div class="step-section">
+    <h3>Bước 3: Giải mã Hồ sơ</h3>
+    <p>Chọn các file bạn đã tải về ở các bước trên để tiến hành giải mã.</p>
+    <form action="{{ url_for('user.decrypt_record') }}" method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label>1. File Bản mã Hồ sơ (<code>ciphertext.bin</code>)</label>
+            <input type="file" name="ciphertext_file" required class="form-control">
+        </div>
+        <div class="form-group">
+            <label>2. File Khóa AES đã mã hóa (<code>aes_key_cpabe.ct</code>)</label>
+            <input type="file" name="encrypted_key_file" required class="form-control">
+        </div>
+        <div class="form-group">
+            <label>3. File Khóa Bí mật của bạn (<code>secret_key.sk</code>)</label>
+            <input type="file" name="secret_key_file" required class="form-control">
+        </div>
+        <div class="form-group">
+            <label>4. File Public Key của hệ thống (<code>public_key.pk</code>)</label>
+            <input type="file" name="public_key_file" required class="form-control">
+        </div>
+        <button type="submit" class="btn btn-success" style="width: 100%;">🔓 Giải mã</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+
+</script>
+{% endblock %}

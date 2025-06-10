@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+{% block title %}Tạo Hồ sơ Bệnh án{% endblock %}
+
+{% block head %}
+<style>
+.form-section { margin-bottom: 30px; padding-bottom: 30px; border-bottom: 2px dashed #ccc; }
+.form-section:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+.search-area { display: flex; gap: 10px; align-items: center; }
+#encryption-section, #upload-section { transition: opacity 0.5s ease; }
+.policy-builder { background: #f8f9fa; padding: 25px; border-radius: 12px; margin: 20px 0; border: 1px solid #dee2e6; }
+.attribute-group { margin-bottom: 20px; padding: 15px; background: #ffffff; border-radius: 8px; border: 1px solid #e9ecef; }
+.attribute-group h4 { color: #2c3e50; margin-bottom: 10px; font-size: 1.1em; }
+.attribute-selector { display: flex; flex-wrap: wrap; gap: 10px; }
+.attribute-option { display: inline-block; padding: 8px 15px; border: 2px solid #ccc; border-radius: 20px; cursor: pointer; user-select: none; transition: all 0.2s ease-in-out; font-size: 0.9em; }
+.attribute-option:hover { border-color: #3498db; background: #eaf5fc; }
+.attribute-option.selected { background-color: #3498db; color: white; border-color: #2980b9; font-weight: 600; }
+.status-panel { background: #e8f5e9; padding: 15px; margin: 20px 0; border-radius: 4px; border-left: 5px solid #4CAF50;}
+.attribute-option[data-policy="role:Patient"] { border-style: dashed; border-color: #28a745; }
+.attribute-option[data-policy="role:Patient"].selected { background-color: #28a745; border-color: #1e7e34; }
+.alert { padding: 10px; border-radius: 5px; }
+.alert-success { background-color: #d4edda; color: #155724; }
+.alert-danger { background-color: #f8d7da; color: #721c24; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>📝 Tạo Hồ sơ cho Bệnh nhân</h2>
+
+<!-- BƯỚC 1: TÌM KIẾM BỆNH NHÂN -->
+<div class="form-section">
+    <h3>Bước 1: Tìm kiếm Bệnh nhân</h3>
+    <p>Nhập số CCCD/National ID của bệnh nhân để xác định và liên kết hồ sơ.</p>
+    <div class="form-group">
+        <label for="search_national_id">CCCD / National ID</label>
+        <div class="search-area">
+            <input type="text" id="search_national_id" class="form-control" placeholder="Nhập số CCCD của bệnh nhân...">
+            <button type="button" class="btn btn-primary" id="search-patient-btn" style="flex-shrink: 0;">🔍 Tìm</button>
+        </div>
+    </div>
+    <div id="search-result" style="margin-top: 15px;"></div>
+</div>
+
+<!-- BƯỚC 2: FORM MÃ HÓA -->
+<div id="encryption-section" class="form-section" style="opacity: 0.5; pointer-events: none;">
+    <form id="encrypt-form" action="{{ url_for('creator.encrypt') }}" method="POST" enctype="multipart/form-data">
+        <h3>Bước 2: Chuẩn bị và Mã hóa</h3>
+        <input type="hidden" id="patient_id" name="patient_id">
+        <input type="hidden" id="patient_name" name="patient_name">
+        <div class="form-group">
+            <label for="medical_file">Hồ sơ y tế</label>
+            <input type="file" id="medical_file" name="medical_file" required class="form-control" />
+        </div>
+        <div class="form-group">
+            <label for="public_key_file">Public Key</label>
+            <input type="file" id="public_key_file" name="public_key_file" accept=".pk" required class="form-control" />
+        </div>
+        <div class="form-group">
+            <label for="aes_key_file">File Khóa AES (Tùy chọn)</label>
+            <input type="file" id="aes_key_file" name="aes_key_file" accept=".key" class="form-control" />
+            <p style="font-size: 0.9em; color: #666;">Để trống nếu muốn hệ thống tự tạo khóa ngẫu nhiên (khuyến nghị).</p>
+        </div>
+        <div class="policy-builder">
+            <h3>🔒 Xây dựng & Tải về Chính sách</h3>
+            <p>1. Chọn thuộc tính. 2. Nhấn "Tạo & Tải về". 3. Chọn lại file ở ô dưới.</p>
+            <div class="attribute-group">
+                <h4>👥 Vai trò được phép truy cập:</h4>
+                <div class="attribute-selector">
+                    <div class="attribute-option" data-group="role" data-policy="role:Doctor">👨‍⚕️ Bác sĩ</div> <div class="attribute-option" data-group="role" data-policy="role:Patient">👤 Bệnh nhân</div> </div>
+            </div>
+            <div class="attribute-group">
+                <h4>🏥 Chuyên khoa (áp dụng cho Bác sĩ):</h4>
+                <div class="attribute-selector">
+                    <div class="attribute-option" data-group="dept" data-policy="dept:Cardiology">❤️ Khoa Tim mạch</div> <div class="attribute-option" data-group="dept" data-policy="dept:Neurology">🧠 Khoa Thần kinh</div> </div>
+            </div>
+            <button type="button" class="btn btn-primary" id="generate-policy-btn">⚙️ Tạo & Tải về Chính sách</button>
+            <button type="button" class="btn btn-danger" id="clear-all-btn">🗑️ Xóa lựa chọn</button>
+        </div>
+        <div class="form-group">
+            <label for="policy_file">File Chính sách (chọn lại file <code>.txt</code>)</label>
+            <input type="file" id="policy_file" name="policy_file" accept=".txt" required class="form-control" />
+        </div>
+        <button type="submit" class="btn btn-success" style="width: 100%;">🔒 Mã hóa và Tạo file Output</button>
+    </form>
+</div>
+
+<!-- ======================================================== -->
+<!-- == BƯỚC 3 ĐÃ ĐƯỢC THÊM LẠI VÀO ĐÂY == -->
+<!-- ======================================================== -->
+{% if step == 'confirm' %}
+<div id="upload-section" class="form-section">
+    <h3>Bước 3: Tải lên Cloud</h3>
+    <div class="status-panel">
+        <h4>✅ Mã hóa thành công!</h4>
+        <p>Các tệp đã được tạo trong <strong>output/</strong>. Bây giờ, hãy chọn lại chúng để tải lên Cloud cho <strong>{{ info.patient_name }}</strong>.</p>
+    </div>
+    <form id="upload-form" action="{{ url_for('creator.upload') }}" method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label for="ciphertext_file_upload">1. Chọn lại File Bản mã (<code>output/ciphertext.bin</code>)</label>
+            <input type="file" id="ciphertext_file_upload" name="ciphertext_file_upload" accept=".bin" required class="form-control" />
+        </div>
+        <div class="form-group">
+            <label for="key_file_upload">2. Chọn lại File Khóa (<code>output/aes_key_cpabe.ct</code>)</label>
+            <input type="file" id="key_file_upload" name="key_file_upload" accept=".ct" required class="form-control" />
+        </div>
+        <button type="submit" class="btn btn-success" style="width: 100%;">🚀 Tải lên Cloud</button>
+    </form>
+</div>
+{% endif %}
+
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // ---- LOGIC TÌM KIẾM BỆNH NHÂN (Không đổi) ----
+    const searchBtn = document.getElementById('search-patient-btn');
+    const searchInput = document.getElementById('search_national_id');
+    const searchResultDiv = document.getElementById('search-result');
+    const encryptionSection = document.getElementById('encryption-section');
+    const patientIdInput = document.getElementById('patient_id');
+    const patientNameInput = document.getElementById('patient_name');
+
+    searchBtn.addEventListener('click', function() {
+        const nationalId = searchInput.value.trim();
+        if (!nationalId) {
+            alert('Vui lòng nhập CCCD để tìm kiếm.');
+            return;
+        }
+        searchResultDiv.innerHTML = '<p>Đang tìm kiếm...</p>';
+
+        fetch("{{ url_for('creator.search_patient') }}", {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ national_id: nationalId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.found) {
+                searchResultDiv.innerHTML = `<div class="alert alert-success">✅ Tìm thấy bệnh nhân: <strong>${data.full_name}</strong></div>`;
+                encryptionSection.style.opacity = '1';
+                encryptionSection.style.pointerEvents = 'auto';
+                patientIdInput.value = data.patient_id;
+                patientNameInput.value = data.full_name;
+            } else {
+                searchResultDiv.innerHTML = `<div class="alert alert-danger">❌ ${data.message}</div>`;
+                encryptionSection.style.opacity = '0.5';
+                encryptionSection.style.pointerEvents = 'none';
+                patientIdInput.value = '';
+                patientNameInput.value = '';
+            }
+        })
+        .catch(error => {
+            console.error('Lỗi:', error);
+            searchResultDiv.innerHTML = `<div class="alert alert-danger">Có lỗi xảy ra khi tìm kiếm.</div>`;
+        });
+    });
+
+    // ---- LOGIC POLICY BUILDER (Đã được cập nhật) ----
+    document.querySelectorAll('.attribute-option').forEach(option => {
+        option.addEventListener('click', function() { this.classList.toggle('selected'); });
+    });
+    document.getElementById('clear-all-btn').addEventListener('click', function() {
+        document.querySelectorAll('.attribute-option.selected').forEach(el => el.classList.remove('selected'));
+    });
+
+    document.getElementById('generate-policy-btn').addEventListener('click', function() {
+        const selectedElems = document.querySelectorAll('.attribute-option.selected');
+        if (selectedElems.length === 0) {
+            alert('Vui lòng chọn ít nhất một vai trò!');
+            return;
+        }
+
+        let isPatientSelected = false;
+        let isDoctorSelected = false; // Track if role:Doctor is explicitly selected
+        const selectedDepts = []; // Store selected departments
+
+        // Phân loại các thuộc tính đã chọn
+        selectedElems.forEach(el => {
+            const policy = el.getAttribute('data-policy');
+            const group = el.getAttribute('data-group');
+
+            if (group === 'role') {
+                if (policy === 'role:Patient') {
+                    isPatientSelected = true;
+                } else if (policy === 'role:Doctor') { // Corrected check for role:Doctor
+                    isDoctorSelected = true;
+                }
+            } else if (group === 'dept') {
+                selectedDepts.push(policy);
+            }
+        });
+
+        // Validation for Doctor-related attributes
+        if ((selectedDepts.length > 0) && !isDoctorSelected) {
+            alert('Nếu chọn các thuộc tính khác (như chuyên khoa), bạn phải chọn vai trò "Bác sĩ"!');
+            return;
+        }
+
+        let doctorPolicyString = "";
+        let finalPolicy = "";
+
+        // Construct the department part first
+        let departmentPolicyPart = "";
+        if (selectedDepts.length > 0) {
+            if (selectedDepts.length > 1) {
+                departmentPolicyPart = `(${selectedDepts.join(' or ')})`;
+            } else {
+                departmentPolicyPart = selectedDepts[0];
+            }
+        }
+
+        // Construct the doctor policy based on departments and role:Doctor
+        if (isDoctorSelected) {
+            if (departmentPolicyPart) {
+                // Desired: ((dept) and role:Doctor)
+                doctorPolicyString = `(${departmentPolicyPart} and role:Doctor)`;
+            } else {
+                doctorPolicyString = '(role:Doctor)'; // If only doctor role, no specific department
+            }
+        }
+
+        // Combine based on whether patient is selected
+        if (isPatientSelected) {
+            if (doctorPolicyString) {
+                // Desired: ((doctorPolicy) or role:Patient)
+                finalPolicy = `(${doctorPolicyString} or role:Patient)`;
+            } else {
+                // Only role:Patient selected
+                finalPolicy = '(role:Patient)';
+            }
+        } else {
+            // Only doctor-related policies, or nothing but patient was explicitly deselected
+            if (doctorPolicyString) {
+                finalPolicy = doctorPolicyString;
+            } else {
+                 // This case should ideally not be reached if validation is strict,
+                 // but as a fallback, ensure a role is selected.
+                alert('Vui lòng chọn ít nhất một vai trò (Bác sĩ hoặc Bệnh nhân)!');
+                return;
+            }
+        }
+        
+        // --- Added outer parentheses around the final policy ---
+        if (finalPolicy) {
+            finalPolicy = `${finalPolicy}`;
+        }
+        // --- END of outer parentheses addition ---
+
+        // Tạo form ẩn và gửi đi để tải file
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = "{{ url_for('creator.generate_policy') }}";
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'policy_string';
+        input.value = finalPolicy;
+        form.appendChild(input);
+        
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+    });
+});
+</script>
+{% endblock %}

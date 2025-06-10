@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block title %}Tải lên Hồ sơ Cá nhân{% endblock %}
+
+{% block head %}
+<style>
+/* CSS không đổi */
+.form-section { margin-bottom: 40px; padding-bottom: 20px; border-bottom: 2px dashed #ccc; }
+.form-section:last-child { border-bottom: none; }
+.policy-builder { background: #f8f9fa; padding: 25px; border-radius: 12px; margin: 20px 0; border: 1px solid #dee2e6; }
+.attribute-group { margin-bottom: 20px; padding: 15px; background: #ffffff; border-radius: 8px; border: 1px solid #e9ecef; }
+.attribute-group h4 { color: #2c3e50; margin-bottom: 10px; font-size: 1.1em; }
+.attribute-selector { display: flex; flex-wrap: wrap; gap: 10px; }
+.attribute-option { display: inline-block; padding: 8px 15px; border: 2px solid #ccc; border-radius: 20px; cursor: pointer; user-select: none; }
+.attribute-option.selected { background-color: #3498db; color: white; border-color: #2980b9; }
+textarea#policy_expression { background-color: #e9ecef; font-family: monospace;}
+.status-panel { background: #e8f5e9; padding: 15px; margin: 20px 0; border-radius: 4px; border-left: 5px solid #4CAF50;}
+</style>
+{% endblock %}
+
+
+{% block content %}
+<h2>📁 Tải lên Hồ sơ Sức khỏe Cá nhân</h2>
+
+<!-- ==================== BƯỚC 1: FORM MÃ HÓA ==================== -->
+{% if step == 'prepare' or not step %}
+<div class="form-section">
+    <h3>Bước 1: Chuẩn bị và Mã hóa</h3>
+    <p>Chọn hồ sơ của bạn, xây dựng chính sách truy cập, sau đó nhấn "Mã hóa" để tạo các file an toàn trong thư mục <code>output/</code>.</p>
+    
+    <form id="encrypt-form" action="{{ url_for('user.patient_upload') }}" method="POST" enctype="multipart/form-data" onsubmit="return validateForm()">
+        <div class="form-group">
+          <label for="record_description">Mô tả hồ sơ</label>
+          <input type="text" id="record_description" name="record_description" required class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="medical_file">File hồ sơ</label>
+          <input type="file" id="medical_file" name="medical_file" required class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="public_key_file">Chọn Public Key của Hệ thống</label>
+          <input type="file" id="public_key_file" name="public_key_file" accept=".pk" required class="form-control" />
+        </div>
+        
+        <div class="policy-builder">
+            <h3>🔒 Xây dựng Chính sách Truy cập</h3>
+            <div class="attribute-group">
+                <h4>👥 Vai trò (chọn ít nhất 1):</h4>
+                <div class="attribute-selector">
+                    <div class="attribute-option" data-group="role" data-policy="role:Doctor">👨‍⚕️ Bác sĩ</div> <div class="attribute-option" data-group="role" data-policy="role:Patient">👤 Chính bạn</div>
+                </div>
+            </div>
+            <div class="attribute-group">
+                <h4>🏥 Chuyên khoa (tùy chọn):</h4>
+                <div class="attribute-selector">
+                    <div class="attribute-option" data-group="dept" data-policy="dept:Cardiology">❤️ Khoa Tim mạch</div> <div class="attribute-option" data-group="dept" data-policy="dept:Neurology">🧠 Khoa Thần kinh</div> </div>
+            </div>
+            <button type="button" class="btn btn-primary" id="generate-policy-btn">⚙️ Tạo Chính sách</button>
+            <button type="button" class="btn btn-danger" id="clear-all-btn">🗑️ Xóa</button>
+        </div>
+        <div class="form-group">
+          <label for="policy_expression">Chính sách được tạo (bắt buộc)</label>
+          <textarea id="policy_expression" name="policy_expression" rows="2" readonly required class="form-control"></textarea>
+        </div>
+        
+        <button type="submit" class="btn btn-success" style="width: 100%;">🔒 Mã hóa và Tạo file Output</button>
+    </form>
+</div>
+{% endif %}
+
+<!-- ======================================================== -->
+<!-- == BƯỚC 2 ĐÃ ĐƯỢC THÊM LẠI VÀO ĐÂY == -->
+<!-- ======================================================== -->
+{% if step == 'confirm' %}
+<div class="form-section">
+    <h3>Bước 2: Tải lên Cloud</h3>
+    <div class="status-panel">
+        <h4>✅ Mã hóa thành công!</h4>
+        <p>Các tệp đã được tạo trong thư mục <strong>output/</strong>. Bây giờ, hãy chọn lại chúng để tải lên.</p>
+    </div>
+    <form id="upload-confirm-form" action="{{ url_for('user.patient_do_upload') }}" method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            <label>1. Chọn lại File Bản mã (<code>output/patient_ciphertext.bin</code>)</label>
+            <input type="file" name="ciphertext_file_upload" accept=".bin" required class="form-control" />
+        </div>
+        <div class="form-group">
+            <label>2. Chọn lại File Khóa (<code>output/patient_aes_key_cpabe.ct</code>)</label>
+            <input type="file" name="key_file_upload" accept=".ct" required class="form-control" />
+        </div>
+        <button type="submit" class="btn btn-success" style="width: 100%;">🚀 Tải lên Cloud</button>
+        <a href="{{ url_for('user.patient_upload') }}" class="btn btn-danger">Hủy bỏ</a>
+    </form>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// JavaScript cho Policy Builder (không đổi)
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.attribute-option').forEach(option => {
+        option.addEventListener('click', function() { this.classList.toggle('selected'); });
+    });
+
+    document.getElementById('clear-all-btn').addEventListener('click', function() {
+        document.querySelectorAll('.attribute-option.selected').forEach(el => el.classList.remove('selected'));
+        document.getElementById('policy_expression').value = '';
+    });
+
+    document.getElementById('generate-policy-btn').addEventListener('click', function() {
+        let isPatientSelected = false;
+        let isDoctorSelected = false; // Track if roleDoctor is explicitly selected
+        const selectedDepts = []; // Store selected departments
+
+        const selectedElems = document.querySelectorAll('.attribute-option.selected');
+        if (selectedElems.length === 0) {
+            alert('Vui lòng chọn ít nhất một vai trò!');
+            return;
+        }
+
+        selectedElems.forEach(el => {
+            const policy = el.getAttribute('data-policy');
+            const group = el.getAttribute('data-group');
+
+            if (group === 'role') {
+                if (policy === 'role:Patient') {
+                    isPatientSelected = true;
+                } else if (policy === 'role:Doctor') {
+                    isDoctorSelected = true;
+                }
+            } else if (group === 'dept') {
+                selectedDepts.push(policy);
+            }
+        });
+
+        // Validation for Doctor-related attributes
+        if ((selectedDepts.length > 0) && !isDoctorSelected) {
+            alert('Nếu chọn các chuyên khoa, bạn phải chọn vai trò "Bác sĩ"!');
+            return;
+        }
+
+        let doctorPolicyString = "";
+        let finalPolicy = "";
+
+        // Construct the department part first
+        let departmentPolicyPart = "";
+        if (selectedDepts.length > 0) {
+            if (selectedDepts.length > 1) {
+                departmentPolicyPart = `(${selectedDepts.join(' or ')})`;
+            } else {
+                departmentPolicyPart = selectedDepts[0];
+            }
+        }
+
+        // Construct the doctor policy based on departments and role:Doctor
+        if (isDoctorSelected) {
+            if (departmentPolicyPart) {
+                doctorPolicyString = `(${departmentPolicyPart} and role:Doctor)`;
+            }
+            else {
+                doctorPolicyString = 'role:Doctor';
+            }
+
+            if (!departmentPolicyPart && !isPatientSelected){
+                doctorPolicyString = '(role:Doctor)'; // If only doctor role, no specific department
+            }
+        }
+
+        // Combine based on whether patient is selected
+        if (isPatientSelected) {
+            if (doctorPolicyString) {
+                // Policy: (DoctorPolicy OR role:Patient)
+                finalPolicy = `(${doctorPolicyString} or role:Patient)`;
+            } else {
+                // Only role:Patient selected
+                finalPolicy = 'role:Patient';
+            }
+        } else {
+            // Only doctor-related policies, or nothing but patient was explicitly deselected
+            if (doctorPolicyString) {
+                finalPolicy = doctorPolicyString;
+            } else {
+                 // This case should ideally not be reached if validation is strict,
+                 // but as a fallback, ensure a role is selected.
+                alert('Vui lòng chọn ít nhất một vai trò!');
+                return;
+            }
+        }
+
+        // Add outer parentheses if the finalPolicy is not empty
+        if (finalPolicy) {
+            finalPolicy = `${finalPolicy}`;
+        }
+
+        document.getElementById('policy_expression').value = finalPolicy;
+        alert('✅ Chính sách đã được tạo!');
+    });
+
+});
+
+function validateForm() {
+    const policyText = document.getElementById('policy_expression').value.trim();
+    if (policyText.length === 0) {
+        alert('Vui lòng "Tạo Chính sách" trước khi mã hóa!');
+        return false;
+    }
+    return true;
+}
+</script>
+{% endblock %}

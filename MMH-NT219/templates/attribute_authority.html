@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Attribute Authority - EHR ABE Demo{% endblock %}
+{% block content %}
+<h2>🔐 Attribute Authority - Quản lý Khóa</h2>
+
+<div class="form-group">
+    <label>Đăng ký User mới</label>
+    <input type="text" placeholder="Tên người dùng" id="new-user-name" />
+</div>
+
+<div class="attribute-selector">
+    <div class="attribute-option">👨‍⚕️ Bác sĩ</div>
+    <div class="attribute-option">👩‍⚕️ Y tá</div>
+    <div class="attribute-option">💊 Dược sĩ</div>
+    <div class="attribute-option">❤️ Khoa Tim mạch</div>
+    <div class="attribute-option">🧠 Khoa Thần kinh</div>
+    <div class="attribute-option">⭐ Trên 5 năm KN</div>
+</div>
+
+<button class="btn btn-success" onclick="alert('Chức năng demo!')">🔑 Tạo Private Key</button>
+{% endblock %}

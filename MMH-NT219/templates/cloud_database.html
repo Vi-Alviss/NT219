@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Cloud Database - EHR ABE Demo{% endblock %}
+{% block content %}
+<h2>💾 Cloud Database - MongoDB Status</h2>
+
+<div class="status-panel">
+    <h4>🌐 OpenStack Cloud Status:</h4>
+    <p>✅ Connection: Active</p>
+    <p>✅ MongoDB: Running on port 27017</p>
+    <p>📊 Total Records: 156</p>
+    <p>🔒 Encrypted Files: 156</p>
+</div>
+
+<div class="data-grid">
+    <div class="data-item">
+        <h4>Collection: medical_records</h4>
+        <p><strong>Documents:</strong> 89</p>
+        <p><strong>Size:</strong> 2.3 GB</p>
+        <p><strong>Indexes:</strong> 5</p>
+    </div>
+
+    <div class="data-item">
+        <h4>Collection: encrypted_keys</h4>
+        <p><strong>Documents:</strong> 67</p>
+        <p><strong>Size:</strong> 145 MB</p>
+        <p><strong>Indexes:</strong> 3</p>
+    </div>
+</div>
+
+<button class="btn" onclick="alert('Tính năng refresh demo')">🔄 Refresh Status</button>
+<button class="btn btn-danger" onclick="alert('Tính năng xóa demo')">🗑️ Clear Test Data</button>
+{% endblock %}

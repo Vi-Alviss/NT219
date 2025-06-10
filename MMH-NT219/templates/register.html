@@ -1,0 +1,126 @@
+<!-- home/quan05/doan/templates/register.html -->
+{% extends "base.html" %}
+{% block title %}Đăng ký tài khoản{% endblock %}
+
+{% block content %}
+<div style="max-width: 600px; margin: 40px auto; padding: 30px; border: 1px solid #ddd; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+
+    <h2 style="text-align: center; margin-bottom: 20px;">📝 Đăng ký tài khoản mới</h2>
+    <p style="text-align: center; color: #666; margin-bottom: 30px;">
+        Vui lòng chọn vai trò và điền đầy đủ thông tin. Tài khoản sẽ cần quản trị viên phê duyệt để kích hoạt.
+    </p>
+
+    <form method="POST" action="{{ url_for('auth.register') }}">
+        <!-- ==================== CÁC TRƯỜNG CHUNG ==================== -->
+        <div class="form-group">
+            <label for="full_name">Họ và Tên:</label>
+            <input type="text" id="full_name" name="full_name" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label for="email">Email (dùng để đăng nhập):</label>
+            <input type="email" id="email" name="email" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label for="password">Mật khẩu:</label>
+            <input type="password" id="password" name="password" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label for="confirm_password">Xác nhận Mật khẩu:</label>
+            <input type="password" id="confirm_password" name="confirm_password" class="form-control" required>
+        </div>
+        
+        <!-- ==================== CHỌN VAI TRÒ ==================== -->
+        <div class="form-group">
+            <label for="role">Tôi là:</label>
+            <select id="role" name="role" class="form-control" onchange="toggleRoleFields()">
+                <option value="">-- Vui lòng chọn vai trò --</option>
+                <option value="patient">👤 Bệnh nhân</option>
+                <option value="doctor">👨‍⚕️ Bác sĩ</option>
+            </select>
+        </div>
+        
+        <!-- ======================================================= -->
+        <!-- == KHỐI THÔNG TIN DÀNH RIÊNG CHO BỆNH NHÂN (ẨN BAN ĐẦU) == -->
+        <!-- ======================================================= -->
+        <div id="patient-fields" class="role-specific-fields" style="display: none;">
+            <p style="font-weight: bold; color: #27ae60; border-bottom: 2px solid #27ae60; padding-bottom: 5px; margin-bottom: 15px;">Thông tin Bệnh nhân</p>
+            <div class="form-group">
+                <label for="dob">Ngày sinh:</label>
+                <input type="date" id="dob" name="dob" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="national_id">Số CCCD/Passport:</label>
+                <input type="text" id="national_id" name="national_id" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="insurance_number">Số Thẻ Bảo hiểm Y tế:</label>
+                <input type="text" id="insurance_number" name="insurance_number" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="emergency_contact">SĐT Người thân (khẩn cấp):</label>
+                <input type="tel" id="emergency_contact" name="emergency_contact" class="form-control">
+            </div>
+        </div>
+        
+        <!-- ===================================================== -->
+        <!-- == KHỐI THÔNG TIN DÀNH RIÊNG CHO BÁC SĨ (ẨN BAN ĐẦU) == -->
+        <!-- ===================================================== -->
+        <div id="doctor-fields" class="role-specific-fields" style="display: none;">
+            <p style="font-weight: bold; color: #3498db; border-bottom: 2px solid #3498db; padding-bottom: 5px; margin-bottom: 15px;">Thông tin Bác sĩ</p>
+            <div class="form-group">
+                <label for="department">Chuyên khoa:</label>
+                <select id="department" name="department" class="form-control">
+                    <option value="Cardiology">❤️ Khoa Tim mạch</option>
+                    <option value="Neurology">🧠 Khoa Thần kinh</option>
+                    <option value="Emergency">🚨 Khoa Cấp cứu</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="license_number">Mã số Chứng chỉ Hành nghề:</label>
+                <input type="text" id="license_number" name="license_number" class="form-control">
+            </div>
+             <div class="form-group">
+                <label for="hospital">Bệnh viện/Nơi công tác:</label>
+                <input type="text" id="hospital" name="hospital" class="form-control">
+            </div>
+        </div>
+
+        <button class="btn btn-success" type="submit" style="width: 100%; padding: 12px; font-size: 1.1em;">Hoàn tất Đăng ký</button>
+    </form>
+
+    <div style="text-align: center; margin-top: 20px;">
+        <p>Đã có tài khoản? <a href="{{ url_for('auth.login') }}">Đăng nhập ngay</a>.</p>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function toggleRoleFields() {
+        const role = document.getElementById('role').value;
+        const patientFields = document.getElementById('patient-fields');
+        const doctorFields = document.getElementById('doctor-fields');
+        
+        // Lấy tất cả các input trong từng khối
+        const patientInputs = patientFields.querySelectorAll('input, select');
+        const doctorInputs = doctorFields.querySelectorAll('input, select');
+
+        // Mặc định ẩn tất cả và bỏ yêu cầu bắt buộc nhập
+        patientFields.style.display = 'none';
+        patientInputs.forEach(input => input.required = false);
+        
+        doctorFields.style.display = 'none';
+        doctorInputs.forEach(input => input.required = false);
+
+        // Hiển thị và đặt yêu cầu bắt buộc nhập cho vai trò được chọn
+        if (role === 'patient') {
+            patientFields.style.display = 'block';
+            patientInputs.forEach(input => input.required = true);
+        } else if (role === 'doctor') {
+            doctorFields.style.display = 'block';
+            doctorInputs.forEach(input => input.required = true);
+        }
+    }
+</script>
+{% endblock %}
